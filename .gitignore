@@ -36,3 +36,6 @@ override.tf.json
 # Ignore CLI configuration files
 .terraformrc
 terraform.rc
+
+# Settings specific to this repository.
+/services/**/main.tf
