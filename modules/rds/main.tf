@@ -1,75 +1,55 @@
 # ref https://registry.terraform.io/modules/terraform-aws-modules/rds/aws/latest
-module "db" {
+module "rds" {
   source  = "terraform-aws-modules/rds/aws"
-  version = "~> 2.0"
+  version = "3.0.0"
 
-  identifier = "demodb"
+  identifier = var.identifier
 
-  engine            = "mysql"
-  engine_version    = "5.7.19"
-  instance_class    = "db.t3.small"
+  engine            = var.engine
+  engine_version    = var.engine_version
+  instance_class    = var.instance_class
   allocated_storage = 5
 
-  name     = "demodb"
-  username = "user"
-  password = "YourPwdShouldBeLongAndSecure!"
+  name     = var.db_name
+  username = var.db_username
+  password = var.db_password
   port     = "3306"
 
-  iam_database_authentication_enabled = true
+  iam_database_authentication_enabled = false
 
-  vpc_security_group_ids = ["sg-12345678"]
+  vpc_security_group_ids = var.security_group
 
+  auto_minor_version_upgrade = false
   maintenance_window = "Mon:00:00-Mon:03:00"
   backup_window      = "03:00-06:00"
 
-  # Enhanced Monitoring - see example for details on how to create the role
-  # by yourself, in case you don't want to create it automatically
-  monitoring_interval = "30"
-  monitoring_role_name = "MyRDSMonitoringRole"
+  #monitoring_interval = "30"
+  monitoring_role_name = var.monitoring_role_name
   create_monitoring_role = true
 
   tags = {
-    Owner       = "user"
-    Environment = "dev"
+    Environment = var.tag_environment
   }
 
   # DB subnet group
-  subnet_ids = ["subnet-12345678", "subnet-87654321"]
+  subnet_ids = var.subnet_ids
 
   # DB parameter group
-  family = "mysql5.7"
+  family = var.db_parameter_group
 
   # DB option group
-  major_engine_version = "5.7"
+  major_engine_version = var.db_option_group
 
   # Database Deletion Protection
   deletion_protection = true
 
-  parameters = [
-    {
-      name = "character_set_client"
-      value = "utf8mb4"
-    },
-    {
-      name = "character_set_server"
-      value = "utf8mb4"
-    }
-  ]
+  parameter_group_use_name_prefix = false
+  parameter_group_name = "${var.identifier}-${var.tag_environment}-parameter"
 
-  options = [
-    {
-      option_name = "MARIADB_AUDIT_PLUGIN"
+  option_group_use_name_prefix = false
+  option_group_name = "${var.identifier}-${var.tag_environment}-option"
 
-      option_settings = [
-        {
-          name  = "SERVER_AUDIT_EVENTS"
-          value = "CONNECT"
-        },
-        {
-          name  = "SERVER_AUDIT_FILE_ROTATIONS"
-          value = "37"
-        },
-      ]
-    },
-  ]
+  parameters = var.parameters
+
+  options = var.options
 }
