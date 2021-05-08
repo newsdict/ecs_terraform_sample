@@ -1,7 +1,7 @@
 # 
 # This makefile for executing the terraform command.
 # 
-# ex) $ make [staging|production] [terraform command. For example `apply`]
+# ex) $ make [staging|production] [ARG={terraform command. For example `apply`}]
 # 
 
 ARG = plan

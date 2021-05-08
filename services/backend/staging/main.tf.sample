@@ -1,0 +1,133 @@
+# Specifies the aws credential information. 
+#  Using the `terraform` profile. 
+provider "aws" {
+  region  = "us-east-1"
+  profile = "terraform"
+}
+
+locals {
+  identifier = "<identifier>"
+  vpc_id = "<vpc-****>"
+  subnet_ids = ["<subnet-****>", "<subnet-****>"]
+  environment = "staging"
+  alb_certificate_arn = "<arn:******>"
+}
+
+module "terraform_s3" {
+  source  = "../../../modules/s3"
+  identifier = local.identifier
+  environment = local.environment
+}
+
+module "terraform_alb_sg" {
+  source = "../../../modules/security_group"
+  identifier = local.identifier
+  vpc_id = local.vpc_id
+  environment = local.environment
+  prefix = "alb"
+  security_group_computed_ingress_with_cidr = [
+    {
+      rule = "https-443-tcp"
+      description = "https"
+      cidr_blocks = "0.0.0.0/0"
+    }
+  ]
+}
+
+module "terraform_ecs_sg" {
+  source = "../../../modules/security_group"
+  identifier = local.identifier
+  vpc_id = local.vpc_id
+  environment = local.environment
+  prefix = "ecs"
+  depends_on = [module.terraform_alb_sg]
+  security_group_computed_ingress_with_sg = [
+    {
+      rule = "http-80-tcp"
+      description = "http"
+      source_security_group_id = module.terraform_alb_sg.security_group_id
+    }
+  ]
+}
+
+module "terraform_rds_sg" {
+  source = "../../../modules/security_group"
+  identifier = local.identifier
+  vpc_id = local.vpc_id
+  environment = local.environment
+  prefix = "rds"
+  depends_on = [module.terraform_ecs_sg]
+  security_group_computed_ingress_with_sg = [
+    {
+      rule = "mysql-tcp"
+      source_security_group_id = module.terraform_ecs_sg.security_group_id
+    }
+  ]
+}
+
+module "terraform_redis_sg" {
+  source = "../../../modules/security_group"
+  identifier = local.identifier
+  vpc_id = local.vpc_id
+  environment = local.environment
+  prefix = "redis"
+  depends_on = [module.terraform_ecs_sg]
+  security_group_ingress_with_sg = [
+    {
+      from_port   = 6379
+      to_port     = 6379
+      protocol    = "tcp"
+      description = "redis"
+      source_security_group_id = module.terraform_ecs_sg.security_group_id
+    }
+  ]
+}
+
+module "terraform_alb" {
+  source  = "../../../modules/alb"
+  identifier = local.identifier
+  vpc_id = local.vpc_id
+  environment = local.environment
+  subnet_ids = local.subnet_ids
+  security_group_ids = [module.terraform_alb_sg.security_group_id]
+  s3_bucket_id = module.terraform_s3.s3_bucket_id
+  depends_on = [module.terraform_s3]
+  alb_certificate_arn = local.alb_certificate_arn
+  deletion_protection = false
+}
+
+module "terraform_iam" {
+  source = "../../../modules/iam_role"
+  identifier = local.identifier
+  environment = local.environment
+  depends_on = [module.terraform_ecs_sg]
+}
+module "terraform_ecs" {
+  source  = "../../../modules/ecs"
+  identifier = local.identifier
+  environment = local.environment
+  ecs_iam_role_arn = module.terraform_iam.iam_role_arn
+  depends_on = [module.terraform_iam]
+  alb_target_group_arns = module.terraform_alb.target_group_arns
+  subnet_ids = local.subnet_ids
+  security_group_ids = [module.terraform_ecs_sg.security_group_id]
+}
+
+module "terraform_redis" {
+  source  = "../../../modules/redis"
+  identifier = local.identifier
+  description = "newsdict redis"
+  vpc_id = local.vpc_id
+  environment = local.environment
+  subnet_ids = local.subnet_ids
+  security_group_ids = [module.terraform_redis_sg.security_group_id]
+}
+
+module "terraform_rds" {
+  source  = "../../../modules/rds"
+  identifier = local.identifier
+  environment = local.environment
+  subnet_ids = local.subnet_ids
+  security_group_ids = [module.terraform_rds_sg.security_group_id]
+  deletion_protection = false
+}

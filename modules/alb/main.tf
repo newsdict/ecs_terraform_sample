@@ -1,36 +1,35 @@
-# ref https://registry.terraform.io/modules/terraform-aws-modules/alb/aws/latest
+# ref https://registry.terraform.io/modules/terraform-aws-modules/alb/aws/6.0.0
 module "alb" {
   source  = "terraform-aws-modules/alb/aws"
-  version = "~> 5.0"
+  version = "6.0.0"
 
-  name = "my-alb"
+  name = "${var.identifier}-${var.environment}"
 
   load_balancer_type = "application"
+  
+  enable_deletion_protection = var.deletion_protection
 
-  vpc_id             = "vpc-abcde012"
-  subnets            = ["subnet-abcde012", "subnet-bcde012a"]
-  security_groups    = ["sg-edcd9784", "sg-edcd9785"]
+  vpc_id             = var.vpc_id
+  subnets            = var.subnet_ids
+  security_groups    = var.security_group_ids
 
   access_logs = {
-    bucket = "my-alb-logs"
+    bucket = var.s3_bucket_id
   }
 
   target_groups = [
     {
-      name_prefix      = "pref-"
+      name = "${var.identifier}-${var.environment}"
       backend_protocol = "HTTP"
       backend_port     = 80
-      target_type      = "instance"
-      targets = [
-        {
-          target_id = "i-0123456789abcdefg"
-          port = 80
-        },
-        {
-          target_id = "i-a1b2c3d4e5f6g7h8i"
-          port = 8080
-        }
-      ]
+      target_type      = "ip"
+      health_check = {
+        path = "/"
+      }
+
+      lifecycle = {
+        create_before_destroy = true
+      }
     }
   ]
 
@@ -38,20 +37,20 @@ module "alb" {
     {
       port               = 443
       protocol           = "HTTPS"
-      certificate_arn    = "arn:aws:iam::123456789012:server-certificate/test_cert-123456789012"
+      certificate_arn    = var.alb_certificate_arn
       target_group_index = 0
     }
   ]
 
-  http_tcp_listeners = [
-    {
-      port               = 80
-      protocol           = "HTTP"
-      target_group_index = 0
-    }
-  ]
+  #http_tcp_listeners = [
+  #  {
+  #    port               = 80
+  #    protocol           = "HTTP"
+  #    target_group_index = 0
+  #  }
+  #]
 
   tags = {
-    Environment = "Test"
+    Environment = var.environment
   }
 }

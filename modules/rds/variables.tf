@@ -1,8 +1,11 @@
-variable "security_group" {
-  type = string
+variable "security_group_ids" {
+  type = list
 }
 variable "subnet_ids" {
   type = list
+}
+variable "deletion_protection" {
+  default = true
 }
 variable "identifier" {
   default = "sample"
@@ -26,7 +29,7 @@ variable "db_password" {
   default = "YourPwdShouldBeLongAndSecure!"
 }
 variable "environment" {
-  default = "development"
+  default = "dev"
 }
 variable "monitoring_role_name" {
   default = "rds-monitoring-role"

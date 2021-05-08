@@ -1,78 +1,75 @@
-# ref https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ecs_cluster
-resource "aws_ecs_cluster" "foo" {
-  name = "white-hart"
-
-  tags = {
-    Environment = "Development"
+resource "aws_ecr_repository" "main" {
+  name = var.identifier
+  image_tag_mutability = "IMMUTABLE"
+  image_scanning_configuration {
+    scan_on_push = true
   }
 }
 
-# ref https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ecs_service
-resource "aws_ecs_service" "mongo" {
-  name            = "mongodb"
-  cluster         = aws_ecs_cluster.foo.id
-  launch_type     = "FARGATE"
-  task_definition = aws_ecs_task_definition.mongo.arn
-  desired_count   = 3
-  iam_role        = aws_iam_role.foo.arn
-  depends_on      = [aws_iam_role_policy.foo]
+# ref https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ecs_cluster
+resource "aws_ecs_cluster" "main" {
+  name = "${var.identifier}-${var.environment}"
 
-  ordered_placement_strategy {
-    type  = "binpack"
-    field = "cpu"
-  }
-
-  load_balancer {
-    target_group_arn = aws_lb_target_group.foo.arn
-    container_name   = "mongo"
-    container_port   = 8080
-  }
-
-  placement_constraints {
-    type       = "memberOf"
-    expression = "attribute:ecs.availability-zone in [us-west-2a, us-west-2b]"
+  tags = {
+    Environment = var.environment
   }
 }
 
 # ref https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ecs_task_definition
-resource "aws_ecs_task_definition" "service" {
-  family = "service"
+# https://docs.aws.amazon.com/ja_jp/AmazonECS/latest/developerguide/task-cpu-memory-error.html
+resource "aws_ecs_task_definition" "main" {
+  family = "${var.identifier}-${var.environment}"
   container_definitions = jsonencode([
     {
-      name      = "first"
-      image     = "service-first"
-      cpu       = 10
-      memory    = 512
-      essential = true
-      portMappings = [
+      "name": "app",
+      "image": aws_ecr_repository.main.repository_url,
+      "essential": true,
+      "portMappings": [
         {
-          containerPort = 80
-          hostPort      = 80
+          "containerPort": var.ecs_container_port,
+          "hostPort": 80
         }
-      ]
-    },
-    {
-      name      = "second"
-      image     = "service-second"
-      cpu       = 10
-      memory    = 256
-      essential = true
-      portMappings = [
-        {
-          containerPort = 443
-          hostPort      = 443
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/myapp",
+          "awslogs-region": "us-west-1",
+          "awslogs-stream-prefix": "ecs"
         }
-      ]
+      }
     }
   ])
 
-  volume {
-    name      = "service-storage"
-    host_path = "/ecs/service-storage"
+  requires_compatibilities = ["FARGATE"]
+  network_mode             = "awsvpc"
+  cpu                      = var.ecs_cpu
+  memory                   = var.ecs_memory
+  task_role_arn            = var.ecs_iam_role_arn
+  execution_role_arn       = var.ecs_iam_role_arn
+}
+
+# ref https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ecs_service
+resource "aws_ecs_service" "app" {
+  name            = "${var.identifier}-${var.environment}-app"
+  cluster         = aws_ecs_cluster.main.id
+  
+  task_definition = aws_ecs_task_definition.main.arn
+  desired_count   = var.ecs_desired_count
+  launch_type     = "FARGATE"
+  
+  network_configuration {
+    security_groups = var.security_group_ids
+    subnets = var.subnet_ids
   }
 
-  placement_constraints {
-    type       = "memberOf"
-    expression = "attribute:ecs.availability-zone in [us-west-2a, us-west-2b]"
+  load_balancer {
+    target_group_arn = var.alb_target_group_arns[0]
+    container_name   = "app"
+    container_port   = var.ecs_container_port
+  }
+
+  lifecycle {
+    ignore_changes = [desired_count, task_definition]
   }
 }
