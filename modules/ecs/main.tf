@@ -22,7 +22,7 @@ resource "aws_ecs_task_definition" "main" {
   container_definitions = jsonencode([
     {
       "name": "app",
-      "image": aws_ecr_repository.main.repository_url,
+      "image": "${aws_ecr_repository.main.repository_url}:${var.release_tag}",
       "essential": true,
       "portMappings": [
         {
@@ -33,8 +33,9 @@ resource "aws_ecs_task_definition" "main" {
       "logConfiguration": {
         "logDriver": "awslogs",
         "options": {
-          "awslogs-group": "/ecs/myapp",
-          "awslogs-region": "us-west-1",
+          "awslogs-create-group": "true",
+          "awslogs-group": "/ecs/${var.identifier}-${var.environment}-app",
+          "awslogs-region": var.aws_region,
           "awslogs-stream-prefix": "ecs"
         }
       }
@@ -57,10 +58,13 @@ resource "aws_ecs_service" "app" {
   task_definition = aws_ecs_task_definition.main.arn
   desired_count   = var.ecs_desired_count
   launch_type     = "FARGATE"
+  platform_version = "1.3.0"
+  health_check_grace_period_seconds = 5
   
   network_configuration {
     security_groups = var.security_group_ids
     subnets = var.subnet_ids
+    assign_public_ip = true
   }
 
   load_balancer {
@@ -70,6 +74,6 @@ resource "aws_ecs_service" "app" {
   }
 
   lifecycle {
-    ignore_changes = [desired_count, task_definition]
+    ignore_changes = [desired_count]
   }
 }

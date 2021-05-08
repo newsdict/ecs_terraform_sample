@@ -38,7 +38,16 @@ variable "policy" {
                   "servicediscovery:Get*",
                   "servicediscovery:List*",
                   "servicediscovery:RegisterInstance",
-                  "servicediscovery:UpdateInstanceCustomHealthStatus"
+                  "servicediscovery:UpdateInstanceCustomHealthStatus",
+                  "ecr:*",
+                  "cloudwatch:PutMetricData",
+                  "ec2:DescribeVolumes",
+                  "ec2:DescribeTags",
+                  "logs:PutLogEvents",
+                  "logs:DescribeLogStreams",
+                  "logs:DescribeLogGroups",
+                  "logs:CreateLogStream",
+                  "logs:CreateLogGroup"
               ],
               "Resource": "*"
           },

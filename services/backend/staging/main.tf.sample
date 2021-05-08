@@ -104,6 +104,7 @@ module "terraform_iam" {
 }
 module "terraform_ecs" {
   source  = "../../../modules/ecs"
+  release_tag = "latest"
   identifier = local.identifier
   environment = local.environment
   ecs_iam_role_arn = module.terraform_iam.iam_role_arn

@@ -32,3 +32,9 @@ variable "ecs_memory" {
   type = number
   default = 512
 }
+variable "aws_region" {
+  type = string
+}
+variable "release_tag" {
+  type = string
+}
