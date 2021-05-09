@@ -58,8 +58,9 @@ resource "aws_ecs_service" "app" {
   task_definition = aws_ecs_task_definition.main.arn
   desired_count   = var.ecs_desired_count
   launch_type     = "FARGATE"
-  platform_version = "1.3.0"
+  platform_version = "1.4.0"
   health_check_grace_period_seconds = 5
+  enable_execute_command = var.ecs_enable_execute_command
   
   network_configuration {
     security_groups = var.security_group_ids

@@ -38,3 +38,7 @@ variable "aws_region" {
 variable "release_tag" {
   type = string
 }
+variable "ecs_enable_execute_command" {
+  type = bool
+  default = true
+}
