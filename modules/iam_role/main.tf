@@ -4,7 +4,7 @@
 #  Separated into main.tf, variable.tf and output.tf 
 #
 resource "aws_iam_role" "main" {
-  name               = var.name
+  name               = "${var.identifier}-role-${var.environment}"
   assume_role_policy = data.aws_iam_policy_document.assume_role.json
 }
 
@@ -14,14 +14,14 @@ data "aws_iam_policy_document" "assume_role" {
 
     principals {
       type        = "Service"
-      identifiers = [var.identifier]
+      identifiers = [var.principals_identifier]
     }
   }
 }
 
 resource "aws_iam_policy" "main" {
-  name   = var.name
-  policy = var.policy
+  name   = "${var.identifier}-policy-${var.environment}"
+  policy = jsonencode(var.policy)
 }
 
 resource "aws_iam_role_policy_attachment" "main" {
